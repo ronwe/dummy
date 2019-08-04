@@ -146,6 +146,7 @@ async function main() {
             continue;
         } 
         createNewPad({
+            padId,
             title,
             type,
             input
@@ -189,6 +190,11 @@ document.body.addEventListener('click', async function(evt) {
         logDiv.innerHTML = '';
     } else if (ele.classList.contains('close')) {
         let pad = ele.parentNode.parentNode;
+        let padId = pad.dataset.wid;
+        let result = await mainWorker.runKill({
+            padId
+        });
+        localStorage.removeItem(`code-${padId}`);
         pad.parentNode.removeChild(pad);
     } else if (ele.classList.contains('run')) {
         let pad = ele.parentNode.parentNode;
@@ -220,12 +226,13 @@ document.body.addEventListener('click', async function(evt) {
 });
 let widGlobal = 0;
 function createNewPad({
+    padId,
     isMax,
     title,
     type,
     input
 }){
-    let wid = widGlobal++ + (+new Date).toString(36);
+    let wid = padId || (widGlobal++ + (+new Date).toString(36));
     document.body.innerHTML += `<div data-wid=${wid} class="codePad ${isMax ? 'maxPad' : 'minPad'}" >
             <div class="titleBar">
                 <input class="max" type=button value=max />

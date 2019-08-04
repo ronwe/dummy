@@ -6,8 +6,16 @@ const { rpc } = require('carlo/rpc');
 
 const UserDataDir = path.resolve(__dirname, '../.dummydata');
 class Backend {
+    constructor() {
+        this.PIDS = [];
+    }
     connect(frontend) {
         this.frontend = frontend;
+    }
+    async runKill({padId}) {
+        if (this.PIDS[padId]) {
+            this.PIDS[padId].kill(); 
+        }
     }
     async runCode({padId, type, input}){
         let proc;
@@ -22,6 +30,7 @@ class Backend {
         } else {
             proc = exec(input);
         }
+        this.PIDS[padId] = proc;
         proc.stdout.on('data', (data) => {
             data = data.toString();
             console.log(`stdout: ${data}`);
@@ -38,6 +47,7 @@ class Backend {
                 console.log('tmpFile', tmpFile)
                 fs.unlinkSync(tmpFile);
             }
+            delete this.PIDS[padId];
             console.log(`child process exited with code ${code}`);
             this.frontend.close({padId});
         })
