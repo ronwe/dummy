@@ -11,6 +11,12 @@
 body{
     background: #222;
 }
+.exit {
+    display: none;
+    position: fixed;
+    top: 3px;
+    right: 3px;
+}
 .codePad {
     position: relative;
 }
@@ -105,6 +111,7 @@ body{
 </style>
 </head>
 <body onload="main()">
+    <input type=button value="exit" class="exit" />
     <div class="addPadWrap">
         <div class="addPad">
             +
@@ -180,7 +187,9 @@ document.body.addEventListener('change', async function(evt) {
 })
 document.body.addEventListener('click', async function(evt) {
     let ele = evt.target;
-    if (ele.classList.contains('max')) {
+    if (ele.classList.contains('exit')) {
+        await mainWorker.exit();
+    } else if (ele.classList.contains('max')) {
         let pad = ele.parentNode.parentNode;
         pad.classList.add('maxPad');
         pad.classList.remove('minPad');

@@ -7,10 +7,20 @@ const { rpc } = require('carlo/rpc');
 const UserDataDir = path.resolve(__dirname, '../.dummydata');
 class Backend {
     constructor() {
-        this.PIDS = [];
+        this.PIDS = {};
     }
     connect(frontend) {
         this.frontend = frontend;
+    }
+    async exit() {
+        await this.closeAll();
+        process.exit();
+    }
+    async closeAll() {
+        let ids = Object.keys(this.PIDS);
+        for (let i = 0 ; i < ids.length; i++){
+            await this.runKill(ids[i]);
+        }
     }
     async runKill({padId}) {
         if (this.PIDS[padId]) {
@@ -57,5 +67,10 @@ class Backend {
     let appWin = await carlo.launch({userDataDir: UserDataDir});
     appWin.serveFolder(__dirname);
     appWin.setIcon('./favicon.ico');
-    await appWin.load('index.html', rpc.handle(new Backend));
+    let oBackInst = new Backend;
+    await appWin.load('index.html', rpc.handle(oBackInst));
+    process.on('exit', function() {
+        oBackInst.closeAll();
+    }); 
 })();
+
