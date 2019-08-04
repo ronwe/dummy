@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charSet="utf-8" />
+    <title>脚本启动器</title>
+<style>
+*{
+    margin:0;
+    padding:0;
+}
+body{
+    background: #222;
+}
+.codePad {
+    position: relative;
+}
+.codePad .button{
+    width: 50%;
+    
+}
+.codePad .input{
+}
+.codePad .title {
+    border: none;
+    background: none;
+    color: #adbaf1;
+}
+.log {
+    height: 100%;
+    overflow: scroll;
+}
+.maxPad {
+    transition: .5s width,.5s height;
+}
+.minPad {
+    transition: .2s width;
+}
+.codePad .log{
+    background: #fff;
+}
+.maxPad .log{
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 49%;
+}
+
+.addPad {
+    display: flex;
+    justify-content: center; 
+    align-items: center;
+    font-size: 100px;
+    font-weight: bold;
+    color: #fff;
+    cursor: pointer;
+}
+.addPadWrap ,.minPad {
+    float: left;
+    background: #000;
+    display: inline-block;
+    width: 30%;
+    height: 200px;
+    padding: 5px;
+    margin: 3px;
+    overflow: hidden;
+}
+.maxPad{
+    background:#000;
+    width: 90vw;
+    height:90vh;
+    position:fixed;
+    z-index:999;
+    top: 2vh;
+    left: 5vw;
+}
+.minPad .input,
+.minPad .buttonBar{
+    display: none;
+}
+.maxPad .titleBar {
+    display: none;
+}
+.maxPad .input {
+    background:#000;
+    color: #ccc;
+    width: 50%;
+    height: 100%;
+}
+
+.out {
+    color: #222;
+}
+.error {
+    color: red;
+}
+.line {
+    font-size:11px;
+    color: #ccc;
+    text-align:center;
+}
+</style>
+</head>
+<body onload="main()">
+    <div class="addPadWrap">
+        <div class="addPad">
+            +
+        </div>
+    </div>
+</body>
+ <script>
+let mainWorker;
+class Frontend {
+    async log({padId,data}) {
+        printLog({padId, data, type: 'out'});
+    }
+    async error({padId,data}) {
+        printLog({padId, data, type: 'error'});
+    }
+    async close({padId}) {
+        printLog({padId, data : '------------output close-----------------',  type: 'line'});
+    }
+}
+async function main() {
+    const [backend] = await carlo.loadParams();
+    await backend.connect(rpc.handle(new Frontend));
+    mainWorker = backend;
+    //自动恢复
+    let storage = window.localStorage;
+    for (var i = storage.length -1; i  >=  0; i--){
+        let key = storage.key(i);
+        let value = storage.getItem(key);
+        key = key.match(/^code\-([\w\d]+)$/);
+        if (!key) {
+            continue;
+        }
+        let padId = key[1];
+        try {
+            value = JSON.parse(value);
+        } catch (err) {
+            storage.removeItem(storage.key(i));
+            continue;
+        }
+
+        let {title, type, input} = value;
+        if (!input) {
+            continue;
+        } 
+        createNewPad({
+            title,
+            type,
+            input
+        });
+    }
+}
+function printLog({padId,data,type}) {
+    let pad = document.querySelector(`[data-wid="${padId}"]`);
+    let logDiv = pad.querySelector('.log');
+    logDiv.innerHTML += `<p class="${type}">${data}</p>`;
+    logDiv.scrollTop = logDiv.scrollHeight;
+}
+document.body.addEventListener('change', async function(evt) {
+    let ele = evt.target;
+    if (ele.classList.contains('title')) {
+        let title_new = ele.value;
+        let pad = ele.parentNode.parentNode;
+        let padId = pad.dataset.wid;
+        let saved = localStorage.getItem(`code-${padId}`);
+        if (!saved) {
+            return;
+        }
+        saved = JSON.parse(saved);
+        saved.title = title_new;
+        localStorage.setItem(`code-${padId}`, JSON.stringify(saved));
+    }
+})
+document.body.addEventListener('click', async function(evt) {
+    let ele = evt.target;
+    if (ele.classList.contains('max')) {
+        let pad = ele.parentNode.parentNode;
+        pad.classList.add('maxPad');
+        pad.classList.remove('minPad');
+    } else if (ele.classList.contains('min')) {
+        let pad = ele.parentNode.parentNode;
+        pad.classList.remove('maxPad');
+        pad.classList.add('minPad');
+    } else if (ele.classList.contains('clean')) {
+        let pad = ele.parentNode.parentNode;
+        let logDiv = pad.querySelector('.log');
+        logDiv.innerHTML = '';
+    } else if (ele.classList.contains('close')) {
+        let pad = ele.parentNode.parentNode;
+        pad.parentNode.removeChild(pad);
+    } else if (ele.classList.contains('run')) {
+        let pad = ele.parentNode.parentNode;
+
+        let padId = pad.dataset.wid;
+
+        let input = pad.querySelector('.input');
+        let type = pad.querySelector('.type');
+        let title = pad.querySelector('.title');
+        type = type.value;
+        input = input.value;
+        title = title.value;
+        let result = await mainWorker.runCode({
+            padId,
+            type, 
+            input
+        });
+        //自动保存
+        localStorage.setItem(`code-${padId}`, JSON.stringify({
+            title,
+            type,
+            input
+        }));
+    } else if (ele.classList.contains('addPad')) {
+        createNewPad({
+            isMax: true
+        });
+    }
+});
+let widGlobal = 0;
+function createNewPad({
+    isMax,
+    title,
+    type,
+    input
+}){
+    let wid = widGlobal++ + (+new Date).toString(36);
+    document.body.innerHTML += `<div data-wid=${wid} class="codePad ${isMax ? 'maxPad' : 'minPad'}" >
+            <div class="titleBar">
+                <input class="max" type=button value=max />
+                <input class="title" value="${title || input || ''}" />
+            </div>
+            <textarea class="input">${input|| ''}</textarea>
+            <div class="buttonBar">
+                <select class="type">
+                    <option ${'sh' === type ? 'selected' : ''}>sh</options>
+                    <option ${'js' === type ? 'selected' : ''}>js</option>
+                </select>
+                <input class="run" type=button value=run />
+                <input class="close" type=button value=close />
+                <input class="min" type=button value=min />
+                <input class="clean" type=button value=clean />
+            </div>
+            <pre class="log"/>
+        </div>`;
+}
+</script>
+</html>
