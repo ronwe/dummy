@@ -201,6 +201,13 @@ document.body.addEventListener('click', async function(evt) {
         let pad = ele.parentNode.parentNode;
         let logDiv = pad.querySelector('.log');
         logDiv.innerHTML = '';
+    } else if (ele.classList.contains('restart')) {
+        let pad = ele.parentNode.parentNode;
+        let padId = pad.dataset.wid;
+        let result = await mainWorker.runKill({
+            padId
+        });
+        pad.querySelector('.run').click();
     } else if (ele.classList.contains('close')) {
         let pad = ele.parentNode.parentNode;
         let padId = pad.dataset.wid;
@@ -258,6 +265,7 @@ function createNewPad({
                     <option ${'js' === type ? 'selected' : ''}>js</option>
                 </select>
                 <input class="run" type=button value=run />
+                <input class="restart" type=button value=restart />
                 <input class="close" type=button value=close />
                 <input class="min" type=button value=min />
                 <input class="clean" type=button value=clean />
